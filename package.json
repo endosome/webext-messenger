@@ -69,7 +69,7 @@
     }
   },
   "webExt": {
-    "sourceDir": "dist",
+    "sourceDir": "dist/extension",
     "run": {
       "startUrl": [
         "https://fregante.github.io/pixiebrix-testing-ground/Will-call-background-methods",

@@ -2,7 +2,7 @@
 
 ## Setup
 
-This project uses:watch
+This project uses:
 
 - [pre-commit](https://pre-commit.com/) to manage git hooks
 - [mozilla/web-ext](https://github.com/mozilla/web-ext) to run the local demo extension
@@ -37,7 +37,13 @@ npm run fix
 
 ## Testing
 
-Testing is semi-manual. To run the tests, build the extension with:
+Run unit tests, lint, TypeScript compilation, and the demo build with:
+
+```sh
+npm test
+```
+
+Browser integration tests are semi-manual. Build the extension with:
 
 ```sh
 npm run demo:watch
@@ -46,7 +52,7 @@ npm run demo:watch
 Then open it in the browser with:
 
 ```Sh
-web-ext run
+web-ext run --target=chromium
 ```
 
 and then open the console. You might need to refresh the page once.
