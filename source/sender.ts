@@ -294,7 +294,7 @@ function messenger<
   target: AnyTarget,
   ...args: Parameters<Method>
 ): ReturnValue | void {
-  options.seq = globalSeq++;
+  options = { ...options, seq: globalSeq++ };
   const { seq } = options;
 
   if ("extensionId" in target) {

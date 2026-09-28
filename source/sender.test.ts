@@ -558,6 +558,19 @@ describe("notifications", () => {
 });
 
 describe("getMethod() and getNotifier()", () => {
+  test("concurrent dynamic calls keep independent sequence metadata", async () => {
+    const chromeStub = stubChrome({ tabs: false });
+    chromeStub.runtime.sendMessage.mockResolvedValue(messengerReply("ok"));
+    const method = getMethod("senderTestMethod");
+    await Promise.all([
+      method({ page: "/options.html" }),
+      method({ page: "/options.html" }),
+    ]);
+    const first = sentEnvelope(chromeStub.runtime.sendMessage, 0);
+    const second = sentEnvelope(chromeStub.runtime.sendMessage, 1);
+    expect(second.options!.seq).toBe(first.options!.seq! + 1);
+  });
+
   test("getMethod binds a fixed target", async () => {
     const chromeStub = stubChrome({ tabs: false });
     chromeStub.runtime.sendMessage.mockResolvedValue(messengerReply("ok"));
