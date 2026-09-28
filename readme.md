@@ -12,7 +12,7 @@ npm install webext-messenger
 ```
 
 ```js
-import messenger from "webext-messenger";
+import { getMethod, registerMethods } from "webext-messenger";
 ```
 
 ## Context
