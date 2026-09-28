@@ -1,6 +1,7 @@
 import {
   getContextName,
   isBackground,
+  isContentScript,
   isExtensionContext,
   isOffscreenDocument,
 } from "webext-detect";
@@ -33,8 +34,9 @@ import oneEvent from "one-event";
  * the target will forever ignore any messages that require the `tabId`. In that case,
  * an error would be thrown once and will be visible in the console, uncaught.
  *
- * Content scripts do not use this logic at all at the moment because they're
- * always targeted via `tabId/frameId` combo and `tabs.sendMessage`.
+ * Content scripts do not need this to receive messages because they're always
+ * targeted via `tabId/frameId` combo and `tabs.sendMessage`, so they only fetch
+ * their tab data when `getThisFrame()` asks for it.
  */
 
 // Soft warning: Race conditions are possible.
@@ -95,7 +97,6 @@ export function __getTabData(this: MessengerMeta): LooseTarget {
   return { tabId: this.trace[0]?.tab?.id, frameId: this.trace[0]?.frameId };
 }
 
-// TODO: Add tests
 export async function getThisFrame(): Promise<FrameTarget> {
   await storeTabData(); // It should already have been called but we still need to await it
 
@@ -146,7 +147,13 @@ export function initPrivateApi(): void {
     // https://github.com/pixiebrix/webext-messenger/pull/80
     registerMethods({ __getTabData });
 
-    // `getTabInformation` includes per-context exclusion logic
-    void storeTabData();
+    // Runtime pages must know their tab early: messages that target `{tabId, page}`
+    // are ignored until they do. Content scripts never need it to receive messages,
+    // and fetching it eagerly would wake the background on every page load, so they
+    // fetch it lazily in `getThisFrame()`, which awaits `storeTabData()`.
+    // `storeTabData` also includes per-context exclusion logic.
+    if (!isContentScript()) {
+      void storeTabData();
+    }
   }
 }
