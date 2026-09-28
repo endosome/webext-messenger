@@ -69,7 +69,7 @@ function onMessageListener(
   }
 
   const { type, target, args, options = {} } = message;
-  const { trace = [], seq, retry } = options;
+  const { trace = [], seq, retry, isNotification } = options;
 
   if (action === "forward") {
     log.debug(type, seq, "🔀 forwarded", { sender, target });
@@ -84,9 +84,11 @@ function onMessageListener(
   // Prepare the response asynchronously because the listener must return `true` synchronously
   (async () => {
     try {
-      trace.push(sender);
-
-      const value = await prepareResponse(message, action, { trace, retry });
+      const value = await prepareResponse(message, action, {
+        trace: [...trace, sender],
+        retry,
+        isNotification,
+      });
       log.debug(type, seq, "↗️ responding", { value });
       sendResponse({ __webextMessenger, value });
     } catch (error) {
