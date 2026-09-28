@@ -535,6 +535,46 @@ describe("retry behaviour", () => {
 });
 
 describe("notifications", () => {
+  test.each(["resolve", "reject", "throw", "missing"])(
+    "local notifications return void and suppress failures: %s",
+    async (outcome) => {
+      stubChrome();
+      vi.mocked(isBackground).mockReturnValue(true);
+      // eslint-disable-next-line @typescript-eslint/promise-function-async -- Exercise a synchronous throw separately from a rejected promise.
+      const handler = vi.fn(() => {
+        if (outcome === "throw") throw new Error("synchronous failure");
+        return outcome === "reject"
+          ? Promise.reject(new Error("asynchronous failure"))
+          : Promise.resolve(42);
+      });
+      if (outcome !== "missing") {
+        handlers.set("senderTestMethod", handler as Method);
+      }
+
+      const send = messenger as unknown as (...args: unknown[]) => unknown;
+      expect(
+        send(
+          "senderTestMethod",
+          { isNotification: true },
+          { page: "background" },
+        ),
+      ).toBeUndefined();
+      await vi.runAllTimersAsync();
+      expect(handler).toHaveBeenCalledTimes(outcome === "missing" ? 0 : 1);
+    },
+  );
+
+  test("notifications tolerate an unavailable external messaging API", () => {
+    vi.stubGlobal("chrome", {});
+    expect(() => {
+      messenger(
+        "senderTestMethod",
+        { isNotification: true },
+        { extensionId: "missing" },
+      );
+    }).not.toThrow();
+  });
+
   test("return undefined, send once, and swallow errors", async () => {
     const chromeStub = stubChrome({ tabs: false });
     chromeStub.runtime.sendMessage.mockRejectedValue(
@@ -569,6 +609,15 @@ describe("getMethod() and getNotifier()", () => {
     const first = sentEnvelope(chromeStub.runtime.sendMessage, 0);
     const second = sentEnvelope(chromeStub.runtime.sendMessage, 1);
     expect(second.options!.seq).toBe(first.options!.seq! + 1);
+  });
+
+  test("a rejected notifier target does not leak an unhandled rejection", async () => {
+    const notify = getNotifier(
+      "senderTestMethod",
+      Promise.reject(new Error("target failed")),
+    );
+    notify();
+    await vi.runAllTimersAsync();
   });
 
   test("getMethod binds a fixed target", async () => {

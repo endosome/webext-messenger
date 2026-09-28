@@ -299,9 +299,15 @@ function messenger<
 
   if ("extensionId" in target) {
     if (!globalThis.chrome?.runtime?.sendMessage) {
-      throw new ExtensionNotFoundError(
+      const error = new ExtensionNotFoundError(
         errorExtensionNotFound.replace("$ID", target.extensionId),
       );
+      if (options.isNotification) {
+        log.debug(type, seq, "notification failed", { error });
+        return;
+      }
+
+      throw error;
     }
 
     const sendMessage = async (attemptCount: number) => {
@@ -324,6 +330,18 @@ function messenger<
   if ("page" in target) {
     if (target.page === "background" && isBackground()) {
       const handler = handlers.get(type);
+      if (options.isNotification) {
+        return manageConnection(type, options, target, async () => {
+          if (!handler) {
+            throw new MessengerError(
+              "No handler registered locally for " + type,
+            );
+          }
+
+          await handler.apply({ trace: [] }, args);
+        }) as ReturnValue;
+      }
+
       if (handler) {
         log.warn(type, seq, "is being handled locally");
         return handler.apply({ trace: [] }, args) as ReturnValue;
@@ -462,7 +480,11 @@ function getNotifier<
 
   return ((...args: Parameters<Method>) => {
     // Async wrapper needed to use `await` while preserving a non-Promise return type
-    (async () => messenger(type, options, await target, ...args))();
+    void (async () => messenger(type, options, await target, ...args))().catch(
+      (error: unknown) => {
+        log.debug(type, "notification failed", { error });
+      },
+    );
   }) as PublicMethodType;
 }
 
